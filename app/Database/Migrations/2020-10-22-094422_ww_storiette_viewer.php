@@ -58,7 +58,7 @@ class WwStorietteViewer extends Migration
 	{
 		$this->db->disableForeignKeyChecks();
 
-		$this->forge->dropTable('ww_storiette_viewer');
+		$this->forge->dropTable('ww_storiette_viewer', true);
 
 		$this->db->enableForeignKeyChecks();
 	}

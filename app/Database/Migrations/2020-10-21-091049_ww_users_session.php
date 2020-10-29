@@ -97,7 +97,7 @@ class WwUsersSession extends Migration
 	{
 		$this->db->disableForeignKeyChecks();
 
-		$this->forge->dropTable('ww_users_session');
+		$this->forge->dropTable('ww_users_session', true);
 
 		$this->db->enableForeignKeyChecks();
 	}

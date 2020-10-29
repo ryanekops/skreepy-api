@@ -96,7 +96,7 @@ class WwStoriette extends Migration
 	{
 		$this->db->disableForeignKeyChecks();
 
-		$this->forge->dropTable('ww_storiette');
+		$this->forge->dropTable('ww_storiette', true);
 
 		$this->db->enableForeignKeyChecks();
 	}

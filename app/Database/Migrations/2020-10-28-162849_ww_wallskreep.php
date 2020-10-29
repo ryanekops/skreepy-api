@@ -48,6 +48,12 @@ class WwWallskreep extends Migration
 			'comment_count'		=> [
 				'type'				=> 'INT',
 				'constraint' 		=> 11,
+				'default'			=> 0
+			],
+			'like_count'		=> [
+				'type'				=> 'INT',
+				'constraint' 		=> 11,
+				'default'			=> 0
 			],
 			'created_at'		=> [
 				'type'				=> 'DATETIME',
@@ -81,7 +87,7 @@ class WwWallskreep extends Migration
 	{
 		$this->db->disableForeignKeyChecks();
 
-		$this->forge->dropTable('ww_wallskreep');
+		$this->forge->dropTable('ww_wallskreep', true);
 
 		$this->db->enableForeignKeyChecks();
 	}

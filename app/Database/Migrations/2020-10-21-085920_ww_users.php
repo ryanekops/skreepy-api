@@ -79,6 +79,6 @@ class WwUsers extends Migration
 
 	public function down()
 	{
-		$this->forge->dropTable('ww_users');
+		$this->forge->dropTable('ww_users', true);
 	}
 }

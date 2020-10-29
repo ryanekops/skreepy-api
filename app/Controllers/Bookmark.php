@@ -123,7 +123,6 @@ class Bookmark extends ResourceController
 
         // POST KEY
         $storySLug      = $json->story_slug;
-        $lastBook       = $json->lastBook; // Not Important
 
         $detailStoriette = $this->storietteModel->detailStoriette($storySLug);
 
