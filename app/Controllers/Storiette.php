@@ -56,7 +56,9 @@ class Storiette extends ResourceController
 
     public function view($limit = 10, $offset = 0)
     {
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -76,7 +78,7 @@ class Storiette extends ResourceController
 
             foreach ($this->storietteModel->viewStoriette($limit, $offset)->getResult() as $data) {
                 $resArray[] = array(
-                    'uniqueID'  => $data->uniqueID,
+                    'slug'      => $data->story_slug,
                     'title'     => $data->story_title,
                     'content'   => $this->view->renderString($data->story_content),
                     'image'     => $data->story_image,
@@ -108,10 +110,11 @@ class Storiette extends ResourceController
         return $this->respond($response, 200);
     }
 
-    public function detail($id = null)
+    public function detail($slug = null)
     {
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
 
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -125,24 +128,24 @@ class Storiette extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $detailStoriette = $this->storietteModel->detailStoriette($id);
+        $detailStoriette = $this->storietteModel->detailStoriette($slug);
 
         if (is_null($detailStoriette)) {
             $response = [
                 'status' => 500,
                 'error' => true,
                 'data' => [
-                    'message' => 'Data not found. Code: 404'
+                    'message' => 'Story not found. Code: 404'
                 ],
             ];
 
             return $this->respond($response, 500);
         }
 
-        $checkBookmark = $this->bookmarkModel->checkUserBookmark($checkTokenAuth['uniqueID'], $detailStoriette['uniqueID']);
+        $checkBookmark = $this->bookmarkModel->checkUserBookmark($checkTokenAuth['ID'], $detailStoriette['ID']);
 
         $resArray = array(
-            'uniqueID'  => $detailStoriette['uniqueID'],
+            'slug'      => $detailStoriette['story_slug'],
             'title'     => $detailStoriette['story_title'],
             'content'   => $this->view->renderString($detailStoriette['story_content']),
             'image'     => $detailStoriette['story_image'],
@@ -184,7 +187,9 @@ class Storiette extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -201,24 +206,23 @@ class Storiette extends ResourceController
         $json = $this->request->getJSON();
 
         // POST KEY
-        $storyUid     = $json->storyUid;
-        $sessionUid   = $json->sessionUid;
+        $storySlug    = $json->story_slug;
 
-        $detailStoriette = $this->storietteModel->detailStoriette($storyUid);
+        $detailStoriette = $this->storietteModel->detailStoriette($storySlug);
 
         if (is_null($detailStoriette)) {
             $response = [
                 'status' => 500,
                 'error' => true,
                 'data' => [
-                    'message' => 'Data not found. Code: 404'
+                    'message' => 'Story not found. Code: 404'
                 ],
             ];
 
             return $this->respond($response, 500);
         }
 
-        $checkSessionUser = $this->sessionModel->checkSession($sessionUid);
+        $checkSessionUser = $this->sessionModel->checkSession($token);
 
         if (count($checkSessionUser) == 0) {
             $response = [
@@ -235,13 +239,13 @@ class Storiette extends ResourceController
         $this->db->transStart();
 
         $this->viewerModel->insert([
-            'user_uniqueID' => $checkTokenAuth['uniqueID'],
-            'storiette_uniqueID' => $detailStoriette['uniqueID'],
-            'session_uniqueID' => $sessionUid,
+            'userID' => $checkTokenAuth['ID'],
+            'storietteID' => $detailStoriette['ID'],
+            'sessionID' => $checkSessionUser['ID'],
             'created_at' => date("Y-m-d H:i:s")
         ]);
 
-        $this->storietteModel->update($detailStoriette['uniqueID'], [
+        $this->storietteModel->update($detailStoriette['ID'], [
             'viewer'    => ($detailStoriette['viewer'] + 1)
         ]);
 
@@ -276,7 +280,7 @@ class Storiette extends ResourceController
         return $this->respond($response, $code);
     }
 
-    public function related($id)
+    public function related($slug)
     {
 
         $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
@@ -293,13 +297,13 @@ class Storiette extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $storietteCount = $this->storietteModel->viewStorietteRelatedCount(5, $id);
+        $storietteCount = $this->storietteModel->viewStorietteRelatedCount(5, $slug);
 
         if ($storietteCount > 0) {
 
-            foreach ($this->storietteModel->viewStorietteRelated(5, $id)->getResult() as $data) {
+            foreach ($this->storietteModel->viewStorietteRelated(5, $slug)->getResult() as $data) {
                 $resArray[] = array(
-                    'uniqueID'  => $data->uniqueID,
+                    'slug'      => $data->story_slug,
                     'title'     => $data->story_title,
                     'content'   => $this->view->renderString($data->story_content),
                     'image'     => $data->story_image,
@@ -348,7 +352,7 @@ class Storiette extends ResourceController
         if ($storietteCount > 0) {
             foreach ($this->storietteModel->searchStoriette($value)->getResult() as $data) {
                 $resArray[] = array(
-                    'uniqueID'  => $data->uniqueID,
+                    'slug'      => $data->story_slug,
                     'title'     => $data->story_title,
                     'content'   => $this->view->renderString($data->story_content),
                     'image'     => $data->story_image,

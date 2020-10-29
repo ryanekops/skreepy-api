@@ -4,10 +4,11 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class WwUsersBookmark extends Migration
+class WwWallskreep extends Migration
 {
 	public function up()
 	{
+
 		$this->db->disableForeignKeyChecks();
 
 		$this->forge->addField([
@@ -22,10 +23,31 @@ class WwUsersBookmark extends Migration
 				'constraint'		=> 21,
 				'unsigned'       	=> true,
 			],
-			'storietteID' => [
+			'wall_content'		=> [
+				'type'				=> 'TEXT',
+			],
+			'wall_status'		=> [
+				'type'				=> 'CHAR',
+				'constraint'		=> 20,
+				'default'			=> 'publish'
+			],
+			'wall_password'		=> [
+				'type'				=> 'VARCHAR',
+				'constraint'		=> 255,
+				'default'			=> ''
+			],
+			'wall_parentID'	=> [
 				'type'				=> 'BIGINT',
 				'constraint'		=> 21,
-				'unsigned'       	=> true,
+				'default'			=> 0
+			],
+			'tagging'			=> [
+				'type'				=> 'VARCHAR',
+				'constraint' 		=> 500,
+			],
+			'comment_count'		=> [
+				'type'				=> 'INT',
+				'constraint' 		=> 11,
 			],
 			'created_at'		=> [
 				'type'				=> 'DATETIME',
@@ -41,25 +63,25 @@ class WwUsersBookmark extends Migration
 		]);
 
 		$this->forge->addKey('ID', true);
+		$this->forge->addKey('tagging');
+		$this->forge->addKey('wall_parentID');
 		$this->forge->addKey('userID');
-		$this->forge->addKey('storietteID');
+		$this->forge->addKey('wall_status');
 		$this->forge->addKey('deleted_at');
 
 		$this->forge->addForeignKey('userID', 'ww_users', 'ID', 'CASCADE');
-		$this->forge->addForeignKey('storietteID', 'ww_storiette', 'ID', 'CASCADE');
 
-		$this->forge->createTable('ww_users_bookmark');
+		$this->forge->createTable('ww_wallskreep');
 
 		$this->db->enableForeignKeyChecks();
 	}
 
-	//--------------------------------------------------------------------
 
 	public function down()
 	{
 		$this->db->disableForeignKeyChecks();
 
-		$this->forge->dropTable('ww_users_bookmark');
+		$this->forge->dropTable('ww_wallskreep');
 
 		$this->db->enableForeignKeyChecks();
 	}

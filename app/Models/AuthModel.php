@@ -7,7 +7,7 @@ use CodeIgniter\Model;
 class AuthModel extends Model
 {
     protected $table            = 'ww_users';
-    protected $primaryKey       = 'uniqueID';
+    protected $primaryKey       = 'ID';
 
     protected $allowedFields    = ['uniqueID', 'user_email', 'user_name', 'user_registered', 'user_fcm', 'user_token', 'email_verified', 'display_name', 'user_photo', 'created_at', 'updated_at', 'deleted_at'];
 

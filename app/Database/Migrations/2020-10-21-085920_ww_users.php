@@ -30,20 +30,20 @@ class WwUsers extends Migration
 				'unique'         	=> true,
 			],
 			'user_photo'		=> [
-				'type'				=> 'TEXT',
-				'null'           	=> true,
+				'type'				=> 'VARCHAR',
+				'constraint'		=> 500,
+				'default'			=> ''
 			],
 			'user_registered'	=> [
 				'type'				=> 'DATETIME'
 			],
 			'user_token'		=> [
 				'type'				=> 'VARCHAR',
-				'constraint' 		=> 1000,
+				'constraint' 		=> 200,
 				'unique'         	=> true,
 			],
 			'user_fcm'			=> [
-				'type'				=> 'VARCHAR',
-				'constraint' 		=> 1000,
+				'type'				=> 'TEXT',
 				'null'           	=> true,
 			],
 			'email_verified'	=> [
@@ -68,7 +68,10 @@ class WwUsers extends Migration
 			],
 		]);
 
-		$this->forge->addKey('ID');
+		$this->forge->addKey('ID', true);
+		$this->forge->addKey('user_name');
+		$this->forge->addKey('deleted_at');
+
 		$this->forge->createTable('ww_users');
 	}
 

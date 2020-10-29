@@ -43,7 +43,10 @@ class Bookmark extends ResourceController
 
     public function view($limit = 10, $offset = 0)
     {
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -62,7 +65,7 @@ class Bookmark extends ResourceController
         if ($bookmarkCount > 0) {
             foreach ($this->bookmarkModel->viewBookmark($limit, $offset)->getResult() as $data) {
                 $resArray[] = array(
-                    'uniqueID'  => $data->uniqueID,
+                    'slug'      => $data->story_slug,
                     'image'     => $data->story_image,
                 );
             }
@@ -100,7 +103,9 @@ class Bookmark extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -117,45 +122,45 @@ class Bookmark extends ResourceController
         $json = $this->request->getJSON();
 
         // POST KEY
-        $storyUid   = $json->storyUid;
-        $lastBook   = $json->lastBook; // Not Important
+        $storySLug      = $json->story_slug;
+        $lastBook       = $json->lastBook; // Not Important
 
-        $detailStoriette = $this->storietteModel->detailStoriette($storyUid);
+        $detailStoriette = $this->storietteModel->detailStoriette($storySLug);
 
         if (is_null($detailStoriette)) {
             $response = [
                 'status' => 500,
                 'error' => true,
                 'data' => [
-                    'message' => 'Data not found. Code: 404'
+                    'message' => 'Story not found. Code: 404'
                 ],
             ];
 
             return $this->respond($response, 500);
         }
 
-        $checkBookmark = $this->bookmarkModel->checkUserBookmark($checkTokenAuth['uniqueID'], $storyUid);
+        $checkBookmark = $this->bookmarkModel->checkUserBookmark($checkTokenAuth['ID'], $detailStoriette['ID']);
 
         $this->db->transStart();
 
         if (is_null($checkBookmark)) {
 
             $this->bookmarkModel->insert([
-                'user_uniqueID'         => $checkTokenAuth['uniqueID'],
-                'storiette_uniqueID'    => $detailStoriette['uniqueID']
+                'userID'         => $checkTokenAuth['ID'],
+                'storietteID'    => $detailStoriette['ID']
             ]);
 
             $message = 'Added to Bookmark';
         } else {
 
             if (is_null($checkBookmark['deleted_at'])) {
-                $this->bookmarkModel->update($checkBookmark['uniqueID'], [
+                $this->bookmarkModel->update($checkBookmark['ID'], [
                     'deleted_at' => date("Y-m-d H:i:s")
                 ]);
 
                 $message = 'Removed to Bookmark';
             } else {
-                $this->bookmarkModel->update($checkBookmark['uniqueID'], [
+                $this->bookmarkModel->update($checkBookmark['ID'], [
                     'deleted_at' => NULL
                 ]);
 

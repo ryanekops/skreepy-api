@@ -13,6 +13,8 @@ class Auth extends ResourceController
     protected $authModel;
     protected $sessionModel;
 
+    protected $key;
+
     protected $db;
 
     public function __construct()
@@ -20,6 +22,8 @@ class Auth extends ResourceController
         $this->authModel = new AuthModel();
 
         $this->sessionModel = new SessionModel();
+
+        $this->key = new Key;
 
         $this->db = \Config\Database::connect();
 
@@ -66,7 +70,7 @@ class Auth extends ResourceController
         // POST KEY
         $uid        = $json->uid;
         $email      = $json->email;
-        $token      = $json->token;
+        $token      = MD5($json->token . $this->key->privateKey());
         $fcm        = $json->fcm;
         $photo      = $json->photo;
         $name       = $json->name;
@@ -81,13 +85,33 @@ class Auth extends ResourceController
 
         if (count($checkUser) > 0) {
 
-            $this->authModel->update($json->uid, [
-                'user_email'                     => $email,
+            $this->authModel->update($checkUser['ID'], [
+                'uniqueID'                       => $uid,
                 'user_photo'                     => $photo,
                 'user_name'                      => $name,
                 'user_token'                     => $token,
                 'email_verified'                 => ($verified) ? true : false,
                 'user_fcm'                       => $fcm
+            ]);
+
+            $checkSessionUser = $this->sessionModel->checkSessionUser($checkUser['ID']);
+
+            if (count($checkSessionUser) > 0) {
+                $this->sessionModel->where('userID', $checkUser['ID'])->set([
+                    'session_active'    => 0
+                ])->update();
+            }
+
+            $this->sessionModel->insert([
+                'userID'                         => $checkUser['ID'],
+                'session_ip'                     => $this->request->getIPAddress(),
+                'session_agent'                  => $this->request->getUserAgent()->getAgentString(),
+                'session_token'                  => $token,
+                'device_os'                      => $devos,
+                'device_name'                    => $devname,
+                'device_uuid'                    => $devuuid,
+                'session_type'                   => 1,
+                'on_date'                        => date("Y-m-d H:i:s")
             ]);
         } else {
 
@@ -102,29 +126,19 @@ class Auth extends ResourceController
                 'display_name'                   => $name,
                 'user_registered'                => date("Y-m-d H:i:s")
             ]);
+
+            $this->sessionModel->insert([
+                'userID'                         => $this->authModel->getInsertID(),
+                'session_ip'                     => $this->request->getIPAddress(),
+                'session_agent'                  => $this->request->getUserAgent()->getAgentString(),
+                'session_token'                  => $token,
+                'device_os'                      => $devos,
+                'device_name'                    => $devname,
+                'device_uuid'                    => $devuuid,
+                'session_type'                   => 1,
+                'on_date'                        => date("Y-m-d H:i:s")
+            ]);
         }
-
-        $checkSessionUser = $this->sessionModel->checkSessionUser($uid);
-
-        if (count($checkSessionUser) > 0) {
-            $this->sessionModel->where('user_uniqueID', $uid)->set([
-                'session_active'    => 0
-            ])->update();
-        }
-
-        $agent = $this->request->getUserAgent();
-
-        $this->sessionModel->insert([
-            'user_uniqueID'                  => $uid,
-            'session_agent'                  => $agent->getAgentString(),
-            'device_os'                      => $devos,
-            'device_name'                    => $devname,
-            'device_uuid'                    => $devuuid,
-            'session_type'                   => 1,
-            'signup_date'                    => date("Y-m-d H:i:s")
-        ]);
-
-        $getSessionNew = $this->sessionModel->find($this->sessionModel->getInsertID());
 
         if ($this->db->transStatus() === FALSE) {
 
@@ -156,7 +170,6 @@ class Auth extends ResourceController
                             'photo' => $photo,
                         ),
                         'token'     => $token,
-                        'sessionID' => $getSessionNew['uniqueID'],
                         'info'  => array(
                             'bookmark' => 0,
                             'reading'  => 0
@@ -185,7 +198,9 @@ class Auth extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -201,10 +216,8 @@ class Auth extends ResourceController
 
         $json = $this->request->getJSON();
 
-        // POST KEY
-        $sessionID = $json->sessionID;
-
-        $checkSession = $this->sessionModel->checkSession($sessionID);
+        // CHECK USER AGENT
+        $checkSession = $this->sessionModel->checkSession($token);
 
         if (count($checkSession) == 0) {
             $response = [
@@ -224,19 +237,17 @@ class Auth extends ResourceController
             'session_active'                 => 0
         ]);
 
-        $agent = $this->request->getUserAgent();
-
         $this->sessionModel->insert([
-            'user_uniqueID'                  => $checkTokenAuth['uniqueID'],
-            'session_agent'                  => $agent->getAgentString(),
+            'userID'                         => $checkTokenAuth['ID'],
+            'session_ip'                     => $this->request->getIPAddress(),
+            'session_agent'                  => $this->request->getUserAgent()->getAgentString(),
+            'session_token'                  => $checkTokenAuth['user_token'],
             'device_os'                      => $checkSession['device_os'],
             'device_name'                    => $checkSession['device_name'],
             'device_uuid'                    => $checkSession['device_uuid'],
             'session_type'                   => 1,
-            'signup_date'                    => date("Y-m-d H:i:s")
+            'on_date'                        => date("Y-m-d H:i:s")
         ]);
-
-        $getSessionNew = $this->sessionModel->find($this->sessionModel->getInsertID());
 
         if ($this->db->transStatus() === FALSE) {
 
@@ -261,9 +272,6 @@ class Auth extends ResourceController
                 'status' => $code,
                 'error' => false,
                 'data' => [
-                    'payload' => array(
-                        'sessionID' => $getSessionNew['uniqueID']
-                    ),
                     'message' => 'Resume successfully'
                 ],
             ];
@@ -286,7 +294,9 @@ class Auth extends ResourceController
             return $this->respond($response, 500);
         }
 
-        $checkTokenAuth = $this->authModel->checkToken(str_replace('Authorization: ', '', $this->request->getHeader('Authorization')));
+        $token = str_replace('Authorization: ', '', $this->request->getHeader('Authorization'));
+
+        $checkTokenAuth = $this->authModel->checkToken($token);
 
         if (count($checkTokenAuth) == 0) {
             $response = [
@@ -303,10 +313,9 @@ class Auth extends ResourceController
         $json = $this->request->getJSON();
 
         // POST KEY
-        $sessionID  = $json->sessionID;
         $logout     = $json->logout;
 
-        $checkSession = $this->sessionModel->checkSession($sessionID);
+        $checkSession = $this->sessionModel->checkSession($token);
 
         if (count($checkSession) == 0) {
             $response = [
@@ -322,21 +331,21 @@ class Auth extends ResourceController
 
         $this->db->transStart();
 
-        $agent = $this->request->getUserAgent();
-
-        $wasting = date_diff(date_create($checkSession['signup_date']), date_create(date("Y-m-d H:i:s")));
+        $wasting = date_diff(date_create($checkSession['on_date']), date_create(date("Y-m-d H:i:s")));
 
         $this->sessionModel->insert([
-            'session_unique_ID'              => $sessionID,
-            'user_uniqueID'                  => $checkTokenAuth['uniqueID'],
-            'session_agent'                  => $agent->getAgentString(),
+            'session_parentID'               => $checkSession['ID'],
+            'userID'                         => $checkTokenAuth['ID'],
+            'session_ip'                     => $this->request->getIPAddress(),
+            'session_agent'                  => $this->request->getUserAgent()->getAgentString(),
+            'session_token'                  => $checkTokenAuth['user_token'],
             'device_os'                      => $checkSession['device_os'],
             'device_name'                    => $checkSession['device_name'],
             'device_uuid'                    => $checkSession['device_uuid'],
             'session_type'                   => 0,
             'session_active'                 => 0,
-            'signup_date'                    => $checkSession['signup_date'],
-            'signout_date'                   => date("Y-m-d H:i:s"),
+            'on_date'                        => $checkSession['on_date'],
+            'off_date'                       => date("Y-m-d H:i:s"),
             'time_wasting'                   => $wasting->i
         ]);
 
@@ -345,7 +354,7 @@ class Auth extends ResourceController
         ]);
 
         if ($logout == true) {
-            $this->authModel->update($checkTokenAuth['uniqueID'], [
+            $this->authModel->update($checkTokenAuth['ID'], [
                 'user_token'                     => null,
                 'user_fcm'                       => null
             ]);
@@ -372,7 +381,7 @@ class Auth extends ResourceController
                 'status' => $code,
                 'error' => false,
                 'data' => [
-                    'message' => 'Log successfully'
+                    'message' => 'Logout/Pause successfully'
                 ],
             ];
         }

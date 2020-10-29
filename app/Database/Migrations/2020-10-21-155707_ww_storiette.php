@@ -8,17 +8,14 @@ class WwStoriette extends Migration
 {
 	public function up()
 	{
+		$this->db->disableForeignKeyChecks();
+
 		$this->forge->addField([
 			'ID'				=> [
 				'type'				=> 'BIGINT',
 				'constraint' 		=> 21,
 				'unsigned'       	=> true,
 				'auto_increment' 	=> true
-			],
-			'uniqueID'			=> [
-				'type'				=> 'VARCHAR',
-				'constraint'		=> 200,
-				'unique'         	=> true,
 			],
 			'story_title'		=> [
 				'type'				=> 'VARCHAR',
@@ -33,17 +30,19 @@ class WwStoriette extends Migration
 				'type'				=> 'TEXT'
 			],
 			'story_image'		=> [
-				'type'				=> 'TEXT',
-				'null'				=> true
+				'type'				=> 'VARCHAR',
+				'constraint'		=> 500,
+				'default'			=> ''
 			],
-			'status'      => [
+			'status'      		=> [
 				'type'           => 'ENUM',
 				'constraint'     => ['publish', 'pending', 'draft'],
 				'default'        => 'pending',
 			],
-			'author_uniqueID'	=> [
-				'type'				=> 'VARCHAR',
-				'constraint'		=> 200,
+			'userID'			=> [
+				'type'				=> 'BIGINT',
+				'constraint'		=> 21,
+				'unsigned'       	=> true,
 			],
 			'jump_scare_img'      => [
 				'type'           => 'VARCHAR',
@@ -52,7 +51,7 @@ class WwStoriette extends Migration
 			],
 			'jump_scare_sec'      => [
 				'type'           => 'INT',
-				'constraint'     => 11,
+				'constraint'     => 10,
 				'default'        => 0,
 			],
 			'viewer'			=> [
@@ -78,13 +77,27 @@ class WwStoriette extends Migration
 			],
 		]);
 
-		$this->forge->addKey('ID');
+		$this->forge->addKey('ID', true);
+		$this->forge->addKey('story_title');
+		$this->forge->addKey('status');
+		$this->forge->addKey('userID');
+		$this->forge->addKey('deleted_at');
+		$this->forge->addKey('jump_scare_sec');
+
+		$this->forge->addForeignKey('userID', 'ww_users', 'ID', 'CASCADE', 'RESTRICT');
+
 		$this->forge->createTable('ww_storiette');
+
+		$this->db->enableForeignKeyChecks();
 	}
 
 
 	public function down()
 	{
+		$this->db->disableForeignKeyChecks();
+
 		$this->forge->dropTable('ww_storiette');
+
+		$this->db->enableForeignKeyChecks();
 	}
 }
